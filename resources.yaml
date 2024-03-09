@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ihm-dashboard
+spec:
+  type: LoadBalancer
+  selector:
+    app: ihm-dashboard
+  ports:
+  - port: 9050
+    targetPort: 9050
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ihm-dashboard
+  labels:
+    app: ihm-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ihm-dashboard
+  template:
+    metadata:
+      labels:
+        app: ihm-dashboard
+    spec:
+      containers:
+      - name: ihm-dashboard
+        image: us-central1-docker.pkg.dev/GOOGLE_PROJECT/home-credit-repo/ihm-dashboard:latest
