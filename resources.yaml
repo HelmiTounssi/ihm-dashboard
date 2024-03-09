@@ -8,8 +8,8 @@ spec:
   selector:
     app: ihm-dashboard
   ports:
-  - port: 9050
-    targetPort: 9050
+  - port: 8501
+    targetPort: 8501
 ---
 apiVersion: apps/v1
 kind: Deployment
