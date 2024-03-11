@@ -28,7 +28,7 @@ colorama==0.4.6
 colour==0.1.5
 comm==0.2.1
 cycler==0.12.1
-dash==2.6.2
+dash==2.15.0
 dash-auth==2.2.1
 dash-bootstrap-components==1.5.0
 dash-core-components==2.0.0
@@ -44,7 +44,7 @@ explainerdashboard==0.4.5
 fastapi==0.110.0
 fastjsonschema==2.19.1
 filelock==3.13.1
-Flask==2.1.2
+Flask==2.2.5
 Flask-Compress==1.14
 flask-simplelogin==0.1.2
 Flask-WTF==1.2.1
@@ -226,7 +226,7 @@ webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.7.0
 websockets==12.0
-Werkzeug==2.2.2
+Werkzeug==2.3.8
 widgetsnbextension==4.0.10
 WTForms==3.1.2
 xai==0.1.0
