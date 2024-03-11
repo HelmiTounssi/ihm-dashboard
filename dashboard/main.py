@@ -394,6 +394,9 @@ def get_explain_all(nb=100) -> Union[ClientExplainResponse, ErrorResponse]:
 
 
 
+
+
+
 def show_global_explain(col):
     # Explain (maximum de 1000 clients, car plus de 1000 c'est des très gros réponses)
     exp_data = get_explain_all(nb=300)
