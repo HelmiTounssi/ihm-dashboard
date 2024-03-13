@@ -9,6 +9,8 @@ import shap
 import requests
 import json
 from typing import Union, Optional
+import requests
+from typing import Union
 
 # Type checking
 from api_models import ClientExplainResponse, ClientPredictResponse, ErrorResponse
@@ -133,6 +135,25 @@ def get_list_clients():
 
 
 @st.cache_data
+def get_all_features():
+    """API - load list of All clients"""
+    try:
+        response = requests.get(f"{API_URL}/clients/")
+        if response.status_code == 200:
+            json_string = response.json()
+            json_data = json.loads(json_string)
+            df = pd.DataFrame(json_data)
+            return df.columns
+
+        else:
+            st.error(f"Error: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error: {e}")
+        return None
+
+
+@st.cache_data
 def get_all_clients():
     """API - load list of All clients"""
     try:
@@ -149,6 +170,52 @@ def get_all_clients():
     except requests.exceptions.RequestException as e:
         st.error(f"Error: {e}")
         return None
+
+
+@st.cache_data
+def get_all_clients_predictions(threshold):
+    """API - load list of All clients"""
+    try:
+        response = requests.get(f"{API_URL}/all/predict?")
+        response = requests.get(
+            f"{API_URL}/all/predict",
+            params={"threshold": threshold},
+        )
+        if response.status_code == 200:
+            json_string = response.json()
+            json_data = json.loads(json_string)
+            df = pd.DataFrame(json_data)
+            return df
+
+        else:
+            st.error(f"Error: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error: {e}")
+        return None
+
+
+def show_select_feature(col, feature_id_name):
+    """Selectionne un client parmi la liste des clients"""
+    with st.spinner("recuperation de la liste de clients"):
+        list_features = get_all_features()
+        nb_features = len(list_features)
+        logging.info(f"Number of clients: {nb_features}")
+        init_key(feature_id_name, list_features[2])
+        col.selectbox(
+            "Selectionne une Variable",
+            list_features,
+            key=feature_id_name,
+            on_change=on_change_feature(feature_id_name),
+            # help="SK_ID_CURR",
+        )
+
+
+def on_change_feature(feature_id_name):
+
+    # feature_id = st.session_state.feature_id
+    init_key(feature_id_name, feature_id_name)
+    logging.info(f"feature {feature_id_name} of clients: {feature_id_name} ")
 
 
 def show_select_client(col):
@@ -186,18 +253,17 @@ def get_client_data(id):
         return pd.DataFrame.from_dict(data, orient="index")
 
 
-import requests
-from typing import Union
-
-
 @st.cache_data  # Cache data for 600 seconds (10 minutes)
 def get_client_predict(
     id, threshold, return_data
 ) -> Union[ClientPredictResponse, None]:
     """Predict whether to give a loan or not."""
- 
+
     try:
-        response = requests.get(f"{API_URL}/predict/{id}", params={"return_data": return_data, "threshold": threshold})
+        response = requests.get(
+            f"{API_URL}/predict/{id}",
+            params={"return_data": return_data, "threshold": threshold},
+        )
         if response.status_code == 200:
             data = response.json()
             return data
@@ -306,7 +372,6 @@ def show_metrics(mc):
     # m5.write(list_clients[0])
 
 
-
 # Define ClientExplainResponse and ErrorResponse types if not defined already
 @st.cache_data
 def get_client_explain(
@@ -315,8 +380,11 @@ def get_client_explain(
     """Explain whether to give a loan or not."""
 
     try:
-        
-        response = requests.get(f"{API_URL}/explain/{id}", params={"return_data": return_data, "threshold": threshold})
+
+        response = requests.get(
+            f"{API_URL}/explain/{id}",
+            params={"return_data": return_data, "threshold": threshold},
+        )
         data = response.json()
         if response.status_code == 200:
             # Check if the response contains an error message
@@ -384,17 +452,11 @@ def show_local_explain(col):
 def get_explain_all(nb=100) -> Union[ClientExplainResponse, ErrorResponse]:
     """explain give loan or not"""
     params = dict(nb=nb)
-    response = requests.get(f"{API_URL}/explain/all", params=params)
+    response = requests.get(f"{API_URL}/all/explain", params=params)
     data = response.json()
     if data.get("error"):
         st.write(data)
     return data
-
-
-
-
-
-
 
 
 def show_global_explain(col):
@@ -403,7 +465,7 @@ def show_global_explain(col):
     if not exp_data.get("error"):
         # st.write(exp_data.keys())
         x_data: dict = exp_data.get("client_data")
-        #df_data = json_to_df(x_data)
+        # df_data = json_to_df(x_data)
         df_data = pd.DataFrame(x_data)
         feature_names = df_data.columns
         shap_values = np.array(exp_data.get("shap_values"))
@@ -466,16 +528,126 @@ def main():
         )
         show_local_explain(expander_local)
     with tab4:
-        st.header("Client position dans chaque variable")
+        st.header("Position du client à l’ensemble des clients ")
         expander_client = st.expander(
-            "Client position dans chaque variable", expanded=True
+            "Analyse univarié du client % moyenne de la population acceptée ou refusée",
+            expanded=True,
         )
         # show_variable_explain(expander_client)
         with expander_client:
             df_client = st.session_state.client_data.to_frame()
-            if isinstance(df_client, pd.DataFrame):
-                st.dataframe(df_client)
+            c2 = expander_client.container()
+            c2.title("Liste de Features")
+            # list_features = get_all_features()
+            # c2.subheader(f"Client ID : {list(list_clients)[0]}")
+            show_select_feature(c2, "feature_only")
+            allclientswithpredictions = get_all_clients_predictions(
+                st.session_state.threshold
+            )
 
+            datas_class_1 = allclientswithpredictions[
+                allclientswithpredictions["pred"] == 1
+            ]
+            datas_class_0 = allclientswithpredictions[
+                allclientswithpredictions["pred"] == 0
+            ]
+
+            # Calculer les moyennes des caractéristiques pour les données filtrées
+            mean_features_0 = datas_class_0.mean(axis=0)
+            mean_features_1 = datas_class_1.mean(axis=0)
+            # Supposons que nous avons les données de chaque variable pour les classes 1 et 0
+            data_class_1 = mean_features_1[
+                st.session_state.feature_only
+            ]  # Exemple de données pour la classe 1
+            data_class_0 = mean_features_0[
+                st.session_state.feature_only
+            ]  # Exemple de données pour la classe 0
+            client_values = get_client_data(
+                df_client
+            )  # Valeurs du client spécifique pour chaque variable
+
+            # Créer les histogrammes pour chaque variable
+            for i, client_value in enumerate(client_values):
+                st.subheader(
+                    f"Distribution de la variable {st.session_state.feature_only}"
+                )
+                fig, ax = plt.subplots()
+                ax.hist(
+                    data_class_1,
+                    bins=30,
+                    color="blue",
+                    alpha=0.5,
+                    label="Classe Refusé",
+                )
+                ax.hist(
+                    data_class_0,
+                    bins=30,
+                    color="orange",
+                    alpha=0.5,
+                    label="Classe Accepté",
+                )
+                ax.axvline(x=client_value, color="red", linestyle="--", label="Client")
+                ax.set_title(
+                    f"Distribution de la variable {st.session_state.feature_only}"
+                )
+                ax.legend()
+                st.pyplot(fig)
+        expander_client2 = st.expander(
+            "Analyse bivariée du client en Positionant dans la population acceptée ou refusée",
+            expanded=True,
+        )
+        with expander_client2:
+            
+            c2 = expander_client2.container()
+            c2.title(" Features_1")
+            show_select_feature(c2, "Features_1")
+            c3 = expander_client2.container()
+            c3.title(" Features 2 ")
+            show_select_feature(c3, "Features_2")
+            allclientswithpredictions = get_all_clients_predictions(
+                st.session_state.threshold
+            )
+
+            datas_class_1 = allclientswithpredictions[
+                allclientswithpredictions["pred"] == 1
+            ]
+            datas_class_0 = allclientswithpredictions[
+                allclientswithpredictions["pred"] == 0
+            ]
+            # Valeurs du client spécifique pour chaque variable
+            # Créer un nuage de points pour représenter la position des clients dans les populations acceptée et refusée
+            plt.figure(figsize=(10, 6))
+            sns.scatterplot(
+                x=st.session_state.Features_1,
+                y=st.session_state.Features_2,
+                data=datas_class_0,
+                label="Accepté",
+            )
+            sns.scatterplot(
+                x=st.session_state.Features_1,
+                y=st.session_state.Features_2,
+                data=datas_class_1,
+                label="Refusé",
+            )
+            
+            # Ajouter le client avec ses données sur le graphique
+            client_id = st.session_state.client_id
+            client_id_str = str(client_id)
+            client_values = data[data["SK_ID_CURR"] == client_id_str]
+            plt.scatter(
+                x=client_values[st.session_state.Features_1],
+                y=client_values[st.session_state.Features_2],
+                color="red",
+                label="Client",
+            )
+
+            plt.xlabel(st.session_state.Features_1)
+            plt.ylabel(st.session_state.Features_2)
+            plt.title("Position des clients dans les populations acceptée et refusée")
+            plt.legend()
+            plt.tight_layout()
+            # Afficher la visualisation dans Streamlit
+            st.pyplot(plt)
 
 # ------------------------------------------------
 # Utility functions
